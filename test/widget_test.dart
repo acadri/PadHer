@@ -143,6 +143,7 @@ void main() {
     await tester.ensureVisible(find.text('Add a school'));
     await tester.tap(find.text('Add a school'));
     await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('teacher-school-dropdown')), findsNothing);
     await tester.enterText(
       find.byKey(const ValueKey('new-school-name')),
       'Nile View School',
@@ -150,6 +151,10 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('save-school')));
     await tester.pumpAndSettle();
     expect(find.text('Nile View School'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('teacher-school-dropdown')),
+      findsOneWidget,
+    );
 
     await tester.ensureVisible(find.byKey(const ValueKey('submit-access')));
     await tester.tap(find.byKey(const ValueKey('submit-access')));
