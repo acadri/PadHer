@@ -273,21 +273,23 @@ class _AccessGateState extends State<AccessGate> {
           if (isTeacher) ...[
             const _FieldLabel('School or distribution point'),
             const SizedBox(height: 7),
-            DropdownButtonFormField<String>(
-              initialValue: _school,
-              decoration: const InputDecoration(),
-              items: _schoolOptions
-                  .map(
-                    (facility) => DropdownMenuItem(
-                      value: facility,
-                      child: Text(facility),
-                    ),
-                  )
-                  .toList(),
-              onChanged: (value) => setState(() {
-                if (value != null) _school = value;
-              }),
-            ),
+            if (!_addingSchool)
+              DropdownButtonFormField<String>(
+                key: const ValueKey('teacher-school-dropdown'),
+                initialValue: _school,
+                decoration: const InputDecoration(),
+                items: _schoolOptions
+                    .map(
+                      (facility) => DropdownMenuItem(
+                        value: facility,
+                        child: Text(facility),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (value) => setState(() {
+                  if (value != null) _school = value;
+                }),
+              ),
             if (_registering) ...[
               Align(
                 alignment: Alignment.centerLeft,
@@ -308,6 +310,9 @@ class _AccessGateState extends State<AccessGate> {
                   controller: _newSchoolController,
                   textCapitalization: TextCapitalization.words,
                   decoration: const InputDecoration(labelText: 'School name'),
+                  validator: (value) => value == null || value.trim().isEmpty
+                      ? 'Enter a school name or cancel to select an existing school'
+                      : null,
                 ),
                 const SizedBox(height: 4),
                 Align(
