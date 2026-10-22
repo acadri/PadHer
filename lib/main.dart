@@ -7,13 +7,13 @@ void main() {
   runApp(const MyApp());
 }
 
-const _ink = Color(0xFF202B29);
-const _muted = Color(0xFF687571);
-const _paper = Color(0xFFF5F6F1);
-const _green = Color(0xFF276253);
-const _greenPale = Color(0xFFE5F0EA);
-const _coral = Color(0xFFC75D43);
-const _line = Color(0xFFE4E8E1);
+const _ink = Color(0xFF181316);
+const _muted = Color(0xFF70666A);
+const _paper = Color(0xFFF7F4F5);
+const _green = Color(0xFFA10032);
+const _greenPale = Color(0xFFF5E5EA);
+const _coral = Color(0xFFD52B45);
+const _line = Color(0xFFE7DDE0);
 
 Widget _softTransition({required Key key, required Widget child}) {
   return AnimatedSwitcher(
@@ -399,12 +399,19 @@ class _BrandMark extends StatelessWidget {
       width: 36,
       height: 36,
       decoration: BoxDecoration(
-        color: _green,
-        borderRadius: BorderRadius.circular(10),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x14000000),
+            blurRadius: 6,
+            offset: Offset(0, 2),
+          ),
+        ],
       ),
-      child: const CustomPaint(
-        size: Size(24, 24),
-        painter: _PadHerLogoPainter(),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: Image.asset('assets/padher_icon.png', fit: BoxFit.cover),
       ),
     );
   }
