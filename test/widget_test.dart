@@ -4,9 +4,47 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:padher/authentication_service.dart';
 import 'package:padher/main.dart';
 
 void main() {
+  testWidgets('GitHub sign-in is required before opening the parent portal', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final authenticationService = _FakeAuthenticationService();
+    await tester.pumpWidget(
+      MyApp(authenticationService: authenticationService),
+    );
+
+    await tester.tap(find.text('Parent or guardian'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('submit-access')));
+    await tester.pumpAndSettle();
+
+    expect(authenticationService.signInAttempts, 1);
+    expect(find.text('Pickup support near you'), findsOneWidget);
+  });
+
+  testWidgets('GitHub accounts without staff approval cannot open teacher portal', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final authenticationService = _FakeAuthenticationService();
+    await tester.pumpWidget(
+      MyApp(authenticationService: authenticationService),
+    );
+
+    await tester.tap(find.text('Senior woman teacher'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('submit-access')));
+    await tester.pumpAndSettle();
+
+    expect(authenticationService.signInAttempts, 1);
+    expect(find.text('Staff access has not been approved for this account.'), findsOneWidget);
+    expect(find.text('Stock'), findsNothing);
+  });
+
   testWidgets('PodCare supports staff stock and anonymous request workflows', (
     tester,
   ) async {
@@ -281,4 +319,33 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Nile View School'), findsOneWidget);
   });
+}
+
+class _FakeAuthenticationService implements AuthenticationService {
+  bool _signedIn = false;
+  int signInAttempts = 0;
+
+  @override
+  AuthenticatedUser? get currentUser => _signedIn
+      ? const AuthenticatedUser(
+          uid: 'test-user',
+          displayName: 'Test Parent',
+          email: 'parent@example.com',
+        )
+      : null;
+
+  @override
+  Future<AuthenticatedUser> signInWithGitHub() async {
+    signInAttempts++;
+    _signedIn = true;
+    return currentUser!;
+  }
+
+  @override
+  Future<bool> hasTeacherAccess() async => false;
+
+  @override
+  Future<void> signOut() async {
+    _signedIn = false;
+  }
 }

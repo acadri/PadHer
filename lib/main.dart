@@ -145,6 +145,19 @@ class _AccessGateState extends State<AccessGate> {
       if (authenticationService != null) {
         user = authenticationService.currentUser ??
             await authenticationService.signInWithGitHub();
+        if (_role == _PortalRole.teacher &&
+            !await authenticationService.hasTeacherAccess()) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'Staff access has not been approved for this account.',
+                ),
+              ),
+            );
+          }
+          return;
+        }
       }
     } on FirebaseAuthException catch (error) {
       if (mounted) {
@@ -175,11 +188,12 @@ class _AccessGateState extends State<AccessGate> {
     if (!mounted) return;
 
     final navigator = Navigator.of(context);
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
     void onSignOut() async {
       try {
         await widget.authenticationService?.signOut();
       } on FirebaseAuthException {
-        ScaffoldMessenger.of(navigator.context).showSnackBar(
+        scaffoldMessenger.showSnackBar(
           const SnackBar(content: Text('Could not sign out. Please try again.')),
         );
         return;

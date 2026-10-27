@@ -21,6 +21,7 @@ class AuthenticatedUser {
 abstract interface class AuthenticationService {
   AuthenticatedUser? get currentUser;
   Future<AuthenticatedUser> signInWithGitHub();
+  Future<bool> hasTeacherAccess();
   Future<void> signOut();
 }
 
@@ -47,6 +48,14 @@ class FirebaseAuthenticationService implements AuthenticationService {
       );
     }
     return AuthenticatedUser.fromFirebase(user);
+  }
+
+  @override
+  Future<bool> hasTeacherAccess() async {
+    final user = _firebaseAuth.currentUser;
+    if (user == null) return false;
+    final claims = (await user.getIdTokenResult(true)).claims ?? const {};
+    return claims['role'] == 'teacher' || claims['teacher'] == true;
   }
 
   @override
