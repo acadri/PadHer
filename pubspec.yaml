@@ -62,7 +62,7 @@ flutter:
   uses-material-design: true
 
   assets:
-    - assets/padher_icon.png
+    - logos/WhatsApp Image 2026-10-22 at 16.25.26.jpeg
 
   # To add assets to your application, add an assets section, like this:
   # assets:

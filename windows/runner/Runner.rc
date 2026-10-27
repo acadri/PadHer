@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "com.padher" "\0"
-            VALUE "FileDescription", "padher" "\0"
+            VALUE "FileDescription", "PodCare" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "padher" "\0"
+            VALUE "InternalName", "podcare" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2026 com.padher. All rights reserved." "\0"
-            VALUE "OriginalFilename", "padher.exe" "\0"
-            VALUE "ProductName", "padher" "\0"
+            VALUE "OriginalFilename", "podcare.exe" "\0"
+            VALUE "ProductName", "PodCare" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

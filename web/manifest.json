@@ -1,11 +1,11 @@
 {
-    "name": "padher",
-    "short_name": "padher",
+    "name": "PodCare",
+    "short_name": "PodCare",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#a9003c",
-    "theme_color": "#a9003c",
-    "description": "A new Flutter project.",
+    "background_color": "#EFFFFB",
+    "theme_color": "#2BB5AD",
+    "description": "PodCare menstrual health support.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
