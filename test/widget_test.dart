@@ -8,7 +8,7 @@ import 'package:padher/authentication_service.dart';
 import 'package:padher/main.dart';
 
 void main() {
-  testWidgets('Google sign-in is required before opening the parent portal', (
+  testWidgets('Parents can submit requests as guests without registering', (
     tester,
   ) async {
     SharedPreferences.setMockInitialValues({});
@@ -22,7 +22,8 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('submit-access')));
     await tester.pumpAndSettle();
 
-    expect(authenticationService.signInAttempts, 1);
+    expect(authenticationService.guestSignInAttempts, 1);
+    expect(authenticationService.googleSignInAttempts, 0);
     expect(find.text('Pickup support near you'), findsOneWidget);
   });
 
@@ -40,8 +41,8 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('submit-access')));
     await tester.pumpAndSettle();
 
-    expect(authenticationService.signInAttempts, 1);
-    expect(find.text('Staff access has not been approved for this account.'), findsOneWidget);
+    expect(authenticationService.googleSignInAttempts, 1);
+    expect(find.text('Your teacher account is registered. Staff access requires approval.'), findsOneWidget);
     expect(find.text('Stock'), findsNothing);
   });
 
@@ -323,7 +324,9 @@ void main() {
 
 class _FakeAuthenticationService implements AuthenticationService {
   bool _signedIn = false;
-  int signInAttempts = 0;
+  bool _isAnonymous = false;
+  int guestSignInAttempts = 0;
+  int googleSignInAttempts = 0;
 
   @override
   AuthenticatedUser? get currentUser => _signedIn
@@ -331,13 +334,23 @@ class _FakeAuthenticationService implements AuthenticationService {
           uid: 'test-user',
           displayName: 'Test Parent',
           email: 'parent@example.com',
+          isAnonymous: _isAnonymous,
         )
       : null;
 
   @override
-  Future<AuthenticatedUser> signInWithGoogle() async {
-    signInAttempts++;
+  Future<AuthenticatedUser> signInAnonymously() async {
+    guestSignInAttempts++;
     _signedIn = true;
+    _isAnonymous = true;
+    return const AuthenticatedUser(uid: 'guest-user', isAnonymous: true);
+  }
+
+  @override
+  Future<AuthenticatedUser> signInWithGoogle() async {
+    googleSignInAttempts++;
+    _signedIn = true;
+    _isAnonymous = false;
     return currentUser!;
   }
 

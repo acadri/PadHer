@@ -143,15 +143,21 @@ class _AccessGateState extends State<AccessGate> {
     try {
       final authenticationService = widget.authenticationService;
       if (authenticationService != null) {
-        user = authenticationService.currentUser ??
-          await authenticationService.signInWithGoogle();
+        user = authenticationService.currentUser;
+        if (user == null) {
+          user = _role == _PortalRole.parent
+              ? await authenticationService.signInAnonymously()
+              : await authenticationService.signInWithGoogle();
+        } else if (_role == _PortalRole.teacher && user.isAnonymous) {
+          user = await authenticationService.signInWithGoogle();
+        }
         if (_role == _PortalRole.teacher &&
             !await authenticationService.hasTeacherAccess()) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text(
-                  'Staff access has not been approved for this account.',
+                  'Your teacher account is registered. Staff access requires approval.',
                 ),
               ),
             );
@@ -163,12 +169,18 @@ class _AccessGateState extends State<AccessGate> {
       if (mounted) {
         final message = switch (error.code) {
           'operation-not-allowed' =>
-            'Google sign-in is not enabled for this Firebase project.',
+            _role == _PortalRole.parent
+                ? 'Guest sign-in is not enabled for this Firebase project.'
+                : 'Google sign-in is not enabled for this Firebase project.',
           'network-request-failed' =>
             'Check your internet connection and try again.',
           'web-context-cancelled' || 'canceled' =>
-            'Google sign-in was canceled.',
-          _ => 'Google sign-in failed. Please try again.',
+            _role == _PortalRole.parent
+                ? 'Guest sign-in was canceled.'
+                : 'Google sign-in was canceled.',
+          _ => _role == _PortalRole.parent
+              ? 'Guest sign-in failed. Please try again.'
+              : 'Google sign-in failed. Please try again.',
         };
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(message)),
@@ -273,7 +285,7 @@ class _AccessGateState extends State<AccessGate> {
           title: 'Senior woman teacher',
           subtitle: widget.authenticationService == null
               ? 'Preview school stock and review local requests'
-              : 'Sign in with Google to access the school workspace',
+              : 'Create or sign in with Google. Staff access requires approval.',
           onTap: () => setState(() => _role = _PortalRole.teacher),
         ),
         const SizedBox(height: 12),
@@ -282,7 +294,7 @@ class _AccessGateState extends State<AccessGate> {
           title: 'Parent or guardian',
             subtitle: widget.authenticationService == null
               ? 'Submit a local request and choose a school pickup point'
-              : 'Sign in with Google to continue as a parent or guardian',
+                : 'Continue as a guest to submit a request. No registration required.',
           onTap: () => setState(() => _role = _PortalRole.parent),
         ),
         const SizedBox(height: 22),
@@ -328,8 +340,8 @@ class _AccessGateState extends State<AccessGate> {
                 ? 'Preview only. Choose a sample school or distribution point.'
                 : 'Preview only. Requests stay on this device and are not sent to a school.'
               : isTeacher
-                    ? 'Sign in with Google to continue. Access permissions are managed by your organization.'
-                    : 'Sign in with Google to continue. Requests are still stored on this device only.',
+                  ? 'Register with Google. Staff access is enabled after approval.'
+                  : 'Continue as a guest without registering. Requests stay on this device.',
             style: const TextStyle(color: _muted, height: 1.45),
           ),
           const SizedBox(height: 22),
@@ -421,9 +433,9 @@ class _AccessGateState extends State<AccessGate> {
                 : Text(
                     widget.authenticationService == null
                         ? 'Open $roleLabel preview'
-                        : widget.authenticationService!.currentUser == null
-                            ? 'Continue with Google'
-                            : 'Continue',
+                        : isTeacher
+                          ? 'Create or sign in with Google'
+                          : 'Continue as guest',
                   ),
           ),
           if (widget.authenticationService == null) ...[

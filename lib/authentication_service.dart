@@ -7,21 +7,25 @@ class AuthenticatedUser {
     required this.uid,
     this.displayName,
     this.email,
+    this.isAnonymous = false,
   });
 
   final String uid;
   final String? displayName;
   final String? email;
+  final bool isAnonymous;
 
   factory AuthenticatedUser.fromFirebase(User user) => AuthenticatedUser(
     uid: user.uid,
     displayName: user.displayName,
     email: user.email,
+    isAnonymous: user.isAnonymous,
   );
 }
 
 abstract interface class AuthenticationService {
   AuthenticatedUser? get currentUser;
+  Future<AuthenticatedUser> signInAnonymously();
   Future<AuthenticatedUser> signInWithGoogle();
   Future<bool> hasTeacherAccess();
   Future<void> signOut();
@@ -39,10 +43,26 @@ class FirebaseAuthenticationService implements AuthenticationService {
   }
 
   @override
+  Future<AuthenticatedUser> signInAnonymously() async {
+    final credential = await _firebaseAuth.signInAnonymously();
+    final user = credential.user;
+    if (user == null) {
+      throw FirebaseAuthException(
+        code: 'missing-user',
+        message: 'Guest sign-in completed without returning a user.',
+      );
+    }
+    return AuthenticatedUser.fromFirebase(user);
+  }
+
+  @override
   Future<AuthenticatedUser> signInWithGoogle() async {
     late final UserCredential credential;
     if (kIsWeb) {
-      credential = await _firebaseAuth.signInWithPopup(GoogleAuthProvider());
+      final currentUser = _firebaseAuth.currentUser;
+      credential = currentUser?.isAnonymous == true
+          ? await currentUser!.linkWithPopup(GoogleAuthProvider())
+          : await _firebaseAuth.signInWithPopup(GoogleAuthProvider());
     } else {
       final googleSignIn = GoogleSignIn.instance;
       await googleSignIn.initialize();
@@ -55,9 +75,13 @@ class FirebaseAuthenticationService implements AuthenticationService {
             message: 'Google sign-in did not return an ID token.',
           );
         }
-        credential = await _firebaseAuth.signInWithCredential(
-          GoogleAuthProvider.credential(idToken: idToken),
+        final googleCredential = GoogleAuthProvider.credential(
+          idToken: idToken,
         );
+        final currentUser = _firebaseAuth.currentUser;
+        credential = currentUser?.isAnonymous == true
+            ? await currentUser!.linkWithCredential(googleCredential)
+            : await _firebaseAuth.signInWithCredential(googleCredential);
       } on GoogleSignInException catch (error) {
         if (error.code == GoogleSignInExceptionCode.canceled) {
           throw FirebaseAuthException(
