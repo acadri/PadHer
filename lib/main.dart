@@ -144,7 +144,7 @@ class _AccessGateState extends State<AccessGate> {
       final authenticationService = widget.authenticationService;
       if (authenticationService != null) {
         user = authenticationService.currentUser ??
-            await authenticationService.signInWithGitHub();
+          await authenticationService.signInWithGoogle();
         if (_role == _PortalRole.teacher &&
             !await authenticationService.hasTeacherAccess()) {
           if (mounted) {
@@ -163,12 +163,12 @@ class _AccessGateState extends State<AccessGate> {
       if (mounted) {
         final message = switch (error.code) {
           'operation-not-allowed' =>
-            'GitHub sign-in is not enabled for this Firebase project.',
+            'Google sign-in is not enabled for this Firebase project.',
           'network-request-failed' =>
             'Check your internet connection and try again.',
           'web-context-cancelled' || 'canceled' =>
-            'GitHub sign-in was canceled.',
-          _ => 'GitHub sign-in failed. Please try again.',
+            'Google sign-in was canceled.',
+          _ => 'Google sign-in failed. Please try again.',
         };
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(message)),
@@ -178,7 +178,7 @@ class _AccessGateState extends State<AccessGate> {
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('GitHub sign-in failed. Please try again.')),
+          const SnackBar(content: Text('Google sign-in failed. Please try again.')),
         );
       }
       return;
@@ -273,7 +273,7 @@ class _AccessGateState extends State<AccessGate> {
           title: 'Senior woman teacher',
           subtitle: widget.authenticationService == null
               ? 'Preview school stock and review local requests'
-              : 'Sign in with GitHub to access the school workspace',
+              : 'Sign in with Google to access the school workspace',
           onTap: () => setState(() => _role = _PortalRole.teacher),
         ),
         const SizedBox(height: 12),
@@ -282,7 +282,7 @@ class _AccessGateState extends State<AccessGate> {
           title: 'Parent or guardian',
             subtitle: widget.authenticationService == null
               ? 'Submit a local request and choose a school pickup point'
-              : 'Sign in with GitHub to continue as a parent or guardian',
+              : 'Sign in with Google to continue as a parent or guardian',
           onTap: () => setState(() => _role = _PortalRole.parent),
         ),
         const SizedBox(height: 22),
@@ -328,8 +328,8 @@ class _AccessGateState extends State<AccessGate> {
                 ? 'Preview only. Choose a sample school or distribution point.'
                 : 'Preview only. Requests stay on this device and are not sent to a school.'
               : isTeacher
-                ? 'Sign in with GitHub to continue. Access permissions are managed by your organization.'
-                : 'Sign in with GitHub to continue. Requests are still stored on this device only.',
+                    ? 'Sign in with Google to continue. Access permissions are managed by your organization.'
+                    : 'Sign in with Google to continue. Requests are still stored on this device only.',
             style: const TextStyle(color: _muted, height: 1.45),
           ),
           const SizedBox(height: 22),
@@ -422,7 +422,7 @@ class _AccessGateState extends State<AccessGate> {
                     widget.authenticationService == null
                         ? 'Open $roleLabel preview'
                         : widget.authenticationService!.currentUser == null
-                            ? 'Continue with GitHub'
+                            ? 'Continue with Google'
                             : 'Continue',
                   ),
           ),

@@ -8,7 +8,7 @@ import 'package:padher/authentication_service.dart';
 import 'package:padher/main.dart';
 
 void main() {
-  testWidgets('GitHub sign-in is required before opening the parent portal', (
+  testWidgets('Google sign-in is required before opening the parent portal', (
     tester,
   ) async {
     SharedPreferences.setMockInitialValues({});
@@ -26,7 +26,7 @@ void main() {
     expect(find.text('Pickup support near you'), findsOneWidget);
   });
 
-  testWidgets('GitHub accounts without staff approval cannot open teacher portal', (
+  testWidgets('Google accounts without staff approval cannot open teacher portal', (
     tester,
   ) async {
     SharedPreferences.setMockInitialValues({});
@@ -335,7 +335,7 @@ class _FakeAuthenticationService implements AuthenticationService {
       : null;
 
   @override
-  Future<AuthenticatedUser> signInWithGitHub() async {
+  Future<AuthenticatedUser> signInWithGoogle() async {
     signInAttempts++;
     _signedIn = true;
     return currentUser!;

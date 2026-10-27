@@ -1,4 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 class AuthenticatedUser {
   const AuthenticatedUser({
@@ -20,7 +22,7 @@ class AuthenticatedUser {
 
 abstract interface class AuthenticationService {
   AuthenticatedUser? get currentUser;
-  Future<AuthenticatedUser> signInWithGitHub();
+  Future<AuthenticatedUser> signInWithGoogle();
   Future<bool> hasTeacherAccess();
   Future<void> signOut();
 }
@@ -37,14 +39,40 @@ class FirebaseAuthenticationService implements AuthenticationService {
   }
 
   @override
-  Future<AuthenticatedUser> signInWithGitHub() async {
-    final provider = OAuthProvider('github.com')..addScope('read:user');
-    final credential = await _firebaseAuth.signInWithProvider(provider);
+  Future<AuthenticatedUser> signInWithGoogle() async {
+    late final UserCredential credential;
+    if (kIsWeb) {
+      credential = await _firebaseAuth.signInWithPopup(GoogleAuthProvider());
+    } else {
+      final googleSignIn = GoogleSignIn.instance;
+      await googleSignIn.initialize();
+      try {
+        final googleUser = await googleSignIn.authenticate();
+        final idToken = googleUser.authentication.idToken;
+        if (idToken == null) {
+          throw FirebaseAuthException(
+            code: 'missing-google-id-token',
+            message: 'Google sign-in did not return an ID token.',
+          );
+        }
+        credential = await _firebaseAuth.signInWithCredential(
+          GoogleAuthProvider.credential(idToken: idToken),
+        );
+      } on GoogleSignInException catch (error) {
+        if (error.code == GoogleSignInExceptionCode.canceled) {
+          throw FirebaseAuthException(
+            code: 'canceled',
+            message: 'Google sign-in was canceled.',
+          );
+        }
+        rethrow;
+      }
+    }
     final user = credential.user;
     if (user == null) {
       throw FirebaseAuthException(
         code: 'missing-user',
-        message: 'GitHub sign-in completed without returning a user.',
+        message: 'Google sign-in completed without returning a user.',
       );
     }
     return AuthenticatedUser.fromFirebase(user);
@@ -59,5 +87,12 @@ class FirebaseAuthenticationService implements AuthenticationService {
   }
 
   @override
-  Future<void> signOut() => _firebaseAuth.signOut();
+  Future<void> signOut() async {
+    await _firebaseAuth.signOut();
+    if (!kIsWeb) {
+      final googleSignIn = GoogleSignIn.instance;
+      await googleSignIn.initialize();
+      await googleSignIn.signOut();
+    }
+  }
 }
