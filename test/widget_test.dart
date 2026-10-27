@@ -7,16 +7,16 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:padher/main.dart';
 
 void main() {
-  testWidgets('PadHer supports staff stock and anonymous request workflows', (
+  testWidgets('PodCare supports staff stock and anonymous request workflows', (
     tester,
   ) async {
     SharedPreferences.setMockInitialValues({});
     await tester.pumpWidget(const MyApp());
 
-    final logo = find.byKey(const ValueKey('padher-logo'));
+    final logo = find.byKey(const ValueKey('podcare-logo'));
     expect(logo, findsOneWidget);
     expect(
-      find.descendant(of: logo, matching: find.byType(CustomPaint)),
+      find.descendant(of: logo, matching: find.byType(Image)),
       findsOneWidget,
     );
 
@@ -28,7 +28,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('submit-access')));
     await tester.pumpAndSettle();
 
-    expect(find.text('PadHer'), findsWidgets);
+    expect(find.text('PodCare'), findsWidgets);
     expect(find.text('St. Mary\'s Secondary'), findsOneWidget);
     expect(find.text('Stock'), findsOneWidget);
     expect(find.text('Requests'), findsOneWidget);

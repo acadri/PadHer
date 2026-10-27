@@ -1,10 +1,25 @@
 import 'dart:convert';
 
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-void main() {
-  runApp(const MyApp());
+import 'authentication_service.dart';
+import 'firebase_options.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+  runApp(
+    MyApp(
+      authenticationService: FirebaseAuthenticationService(
+        FirebaseAuth.instance,
+      ),
+    ),
+  );
 }
 
 const _ink = Color(0xFF181316);
@@ -35,7 +50,9 @@ Widget _softTransition({required Key key, required Widget child}) {
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  const MyApp({super.key, this.authenticationService});
+
+  final AuthenticationService? authenticationService;
 
   @override
   Widget build(BuildContext context) {
@@ -72,7 +89,7 @@ class MyApp extends StatelessWidget {
           ),
         ),
       ),
-      home: const AccessGate(),
+      home: AccessGate(authenticationService: authenticationService),
     );
   }
 }
@@ -80,7 +97,9 @@ class MyApp extends StatelessWidget {
 enum _PortalRole { teacher, parent }
 
 class AccessGate extends StatefulWidget {
-  const AccessGate({super.key});
+  const AccessGate({super.key, this.authenticationService});
+
+  final AuthenticationService? authenticationService;
 
   @override
   State<AccessGate> createState() => _AccessGateState();
@@ -95,6 +114,7 @@ class _AccessGateState extends State<AccessGate> {
   _PortalRole? _role;
   bool _registering = false;
   bool _addingSchool = false;
+  bool _authenticating = false;
   String _school = 'St. Mary\'s Secondary';
 
   @override
@@ -115,13 +135,61 @@ class _AccessGateState extends State<AccessGate> {
     });
   }
 
-  void _openPortal() {
+  Future<void> _openPortal() async {
     if (!_formKey.currentState!.validate()) return;
 
+    setState(() => _authenticating = true);
+    AuthenticatedUser? user;
+    try {
+      final authenticationService = widget.authenticationService;
+      if (authenticationService != null) {
+        user = authenticationService.currentUser ??
+            await authenticationService.signInWithGitHub();
+      }
+    } on FirebaseAuthException catch (error) {
+      if (mounted) {
+        final message = switch (error.code) {
+          'operation-not-allowed' =>
+            'GitHub sign-in is not enabled for this Firebase project.',
+          'network-request-failed' =>
+            'Check your internet connection and try again.',
+          'web-context-cancelled' || 'canceled' =>
+            'GitHub sign-in was canceled.',
+          _ => 'GitHub sign-in failed. Please try again.',
+        };
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(message)),
+        );
+      }
+      return;
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('GitHub sign-in failed. Please try again.')),
+        );
+      }
+      return;
+    } finally {
+      if (mounted) setState(() => _authenticating = false);
+    }
+    if (!mounted) return;
+
     final navigator = Navigator.of(context);
-    void onSignOut() {
+    void onSignOut() async {
+      try {
+        await widget.authenticationService?.signOut();
+      } on FirebaseAuthException {
+        ScaffoldMessenger.of(navigator.context).showSnackBar(
+          const SnackBar(content: Text('Could not sign out. Please try again.')),
+        );
+        return;
+      }
       navigator.pushAndRemoveUntil(
-        MaterialPageRoute<void>(builder: (_) => const AccessGate()),
+        MaterialPageRoute<void>(
+          builder: (_) => AccessGate(
+            authenticationService: widget.authenticationService,
+          ),
+        ),
         (route) => false,
       );
     }
@@ -136,9 +204,11 @@ class _AccessGateState extends State<AccessGate> {
       navigator.pushReplacement(
         MaterialPageRoute<void>(
           builder: (_) => ParentHomeScreen(
-            parentName: _nameController.text.trim().isEmpty
+            parentName: user?.displayName ??
+              user?.email ??
+              (_nameController.text.trim().isEmpty
                 ? 'Parent account'
-                : _nameController.text.trim(),
+                : _nameController.text.trim()),
             onSignOut: onSignOut,
           ),
         ),
@@ -187,14 +257,18 @@ class _AccessGateState extends State<AccessGate> {
         _RoleCard(
           icon: Icons.school_outlined,
           title: 'Senior woman teacher',
-          subtitle: 'Preview school stock and review local requests',
+          subtitle: widget.authenticationService == null
+              ? 'Preview school stock and review local requests'
+              : 'Sign in with GitHub to access the school workspace',
           onTap: () => setState(() => _role = _PortalRole.teacher),
         ),
         const SizedBox(height: 12),
         _RoleCard(
           icon: Icons.family_restroom_rounded,
           title: 'Parent or guardian',
-          subtitle: 'Submit a local request and choose a school pickup point',
+            subtitle: widget.authenticationService == null
+              ? 'Submit a local request and choose a school pickup point'
+              : 'Sign in with GitHub to continue as a parent or guardian',
           onTap: () => setState(() => _role = _PortalRole.parent),
         ),
         const SizedBox(height: 22),
@@ -224,7 +298,9 @@ class _AccessGateState extends State<AccessGate> {
           ),
           const SizedBox(height: 12),
           Text(
-            '${isTeacher ? 'Teacher' : 'Parent'} preview${_registering ? ' setup' : ''}',
+            widget.authenticationService == null
+              ? '${isTeacher ? 'Teacher' : 'Parent'} preview${_registering ? ' setup' : ''}'
+              : '${isTeacher ? 'Teacher' : 'Parent'} access',
             style: const TextStyle(
               color: _ink,
               fontSize: 25,
@@ -233,13 +309,17 @@ class _AccessGateState extends State<AccessGate> {
           ),
           const SizedBox(height: 8),
           Text(
-            isTeacher
-              ? 'Preview only. Choose a sample school or distribution point.'
-              : 'Preview only. Requests stay on this device and are not sent to a school.',
+            widget.authenticationService == null
+              ? isTeacher
+                ? 'Preview only. Choose a sample school or distribution point.'
+                : 'Preview only. Requests stay on this device and are not sent to a school.'
+              : isTeacher
+                ? 'Sign in with GitHub to continue. Access permissions are managed by your organization.'
+                : 'Sign in with GitHub to continue. Requests are still stored on this device only.',
             style: const TextStyle(color: _muted, height: 1.45),
           ),
           const SizedBox(height: 22),
-          if (_registering) ...[
+          if (_registering && widget.authenticationService == null) ...[
             TextFormField(
               key: const ValueKey('account-name'),
               controller: _nameController,
@@ -272,7 +352,7 @@ class _AccessGateState extends State<AccessGate> {
                   if (value != null) _school = value;
                 }),
               ),
-            if (_registering) ...[
+            if (_registering && widget.authenticationService == null) ...[
               Align(
                 alignment: Alignment.centerLeft,
                 child: TextButton.icon(
@@ -317,27 +397,44 @@ class _AccessGateState extends State<AccessGate> {
           if (!isTeacher && !_registering) const SizedBox(height: 10),
           FilledButton(
             key: const ValueKey('submit-access'),
-            onPressed: _openPortal,
+            onPressed: _authenticating ? null : _openPortal,
             style: _primaryButtonStyle,
-            child: Text(
-                'Open $roleLabel preview',
-            ),
+            child: _authenticating
+                ? const SizedBox.square(
+                    dimension: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : Text(
+                    widget.authenticationService == null
+                        ? 'Open $roleLabel preview'
+                        : widget.authenticationService!.currentUser == null
+                            ? 'Continue with GitHub'
+                            : 'Continue',
+                  ),
           ),
-          const SizedBox(height: 10),
-          Center(
-            child: TextButton(
-              onPressed: () => setState(() => _registering = !_registering),
-              child: Text(
-                _registering ? 'Back to preview' : 'Set a display name',
+          if (widget.authenticationService == null) ...[
+            const SizedBox(height: 10),
+            Center(
+              child: TextButton(
+                onPressed: () => setState(() => _registering = !_registering),
+                child: Text(
+                  _registering ? 'Back to preview' : 'Set a display name',
+                ),
               ),
             ),
-          ),
+          ],
           const SizedBox(height: 8),
-          const Center(
+          Center(
             child: Text(
-              'No account is created. Preview data is not shared with a school.',
+              widget.authenticationService == null
+                  ? 'No account is created. Preview data is not shared with a school.'
+                  : 'Firebase verifies your account. Portal data remains on this device for now.',
               textAlign: TextAlign.center,
-              style: TextStyle(color: _muted, fontSize: 11, height: 1.4),
+              style: const TextStyle(
+                color: _muted,
+                fontSize: 11,
+                height: 1.4,
+              ),
             ),
           ),
         ],
@@ -418,65 +515,6 @@ class _BrandMark extends StatelessWidget {
       ),
     );
   }
-}
-
-class _PadHerLogoPainter extends CustomPainter {
-  const _PadHerLogoPainter();
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    canvas.save();
-    canvas.scale(size.width / 24, size.height / 24);
-
-    final padPaint = Paint()..color = Colors.white;
-    final wingPath = Path()
-      ..moveTo(8.5, 8)
-      ..lineTo(3.1, 6.1)
-      ..quadraticBezierTo(1.9, 5.7, 2.3, 7.1)
-      ..lineTo(4.5, 13.7)
-      ..quadraticBezierTo(4.8, 14.6, 5.8, 14.2)
-      ..lineTo(9, 12.8)
-      ..close();
-    canvas.drawPath(wingPath, padPaint);
-    canvas.save();
-    canvas.scale(-1, 1);
-    canvas.translate(-24, 0);
-    canvas.drawPath(wingPath, padPaint);
-    canvas.restore();
-
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        const Rect.fromLTWH(8, 2.5, 8, 19),
-        const Radius.circular(4),
-      ),
-      padPaint,
-    );
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        const Rect.fromLTWH(10.2, 4.2, 3.6, 15.5),
-        const Radius.circular(1.8),
-      ),
-      Paint()..color = const Color(0xFFFFD9D0),
-    );
-
-    final dropPath = Path()
-      ..moveTo(12, 8.1)
-      ..cubicTo(10.6, 10, 9.4, 11.5, 9.4, 13.2)
-      ..cubicTo(9.4, 14.9, 10.5, 16.1, 12, 16.1)
-      ..cubicTo(13.5, 16.1, 14.6, 14.9, 14.6, 13.2)
-      ..cubicTo(14.6, 11.5, 13.4, 10, 12, 8.1)
-      ..close();
-    canvas.drawPath(dropPath, Paint()..color = _coral);
-    canvas.drawCircle(
-      const Offset(10.9, 12.5),
-      0.65,
-      Paint()..color = const Color(0xFFFFB6A7),
-    );
-    canvas.restore();
-  }
-
-  @override
-  bool shouldRepaint(covariant _PadHerLogoPainter oldDelegate) => false;
 }
 
 class _PrivacyNote extends StatelessWidget {
