@@ -108,6 +108,8 @@ class AccessGate extends StatefulWidget {
 class _AccessGateState extends State<AccessGate> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
   final _newSchoolController = TextEditingController();
   final List<String> _schoolOptions = [..._staffFacilities];
 
@@ -120,6 +122,8 @@ class _AccessGateState extends State<AccessGate> {
   @override
   void dispose() {
     _nameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
     _newSchoolController.dispose();
     super.dispose();
   }
@@ -135,8 +139,11 @@ class _AccessGateState extends State<AccessGate> {
     });
   }
 
-  Future<void> _openPortal() async {
-    if (!_formKey.currentState!.validate()) return;
+  Future<void> _openPortal({bool useGoogle = false}) async {
+    if ((!useGoogle || widget.authenticationService == null) &&
+        !_formKey.currentState!.validate()) {
+      return;
+    }
 
     setState(() => _authenticating = true);
     AuthenticatedUser? user;
@@ -147,9 +154,25 @@ class _AccessGateState extends State<AccessGate> {
         if (user == null) {
           user = _role == _PortalRole.parent
               ? await authenticationService.signInAnonymously()
-              : await authenticationService.signInWithGoogle();
+              : useGoogle
+                  ? await authenticationService.signInWithGoogle()
+                  : _registering
+                      ? await authenticationService
+                            .createAccountWithEmailAndPassword(
+                              _emailController.text,
+                              _passwordController.text,
+                            )
+                      : await authenticationService.signInWithEmailAndPassword(
+                          _emailController.text,
+                          _passwordController.text,
+                        );
         } else if (_role == _PortalRole.teacher && user.isAnonymous) {
-          user = await authenticationService.signInWithGoogle();
+          user = useGoogle
+              ? await authenticationService.signInWithGoogle()
+              : await authenticationService.signInWithEmailAndPassword(
+                  _emailController.text,
+                  _passwordController.text,
+                );
         }
         if (_role == _PortalRole.teacher &&
             !await authenticationService.hasTeacherAccess()) {
@@ -171,16 +194,30 @@ class _AccessGateState extends State<AccessGate> {
           'operation-not-allowed' =>
             _role == _PortalRole.parent
                 ? 'Guest sign-in is not enabled for this Firebase project.'
-                : 'Google sign-in is not enabled for this Firebase project.',
+                : useGoogle
+                  ? 'Google sign-in is not enabled for this Firebase project.'
+                  : 'Email and password sign-in is not enabled for this Firebase project.',
           'network-request-failed' =>
             'Check your internet connection and try again.',
+            'email-already-in-use' =>
+              'An account already uses this email. Sign in instead.',
+            'invalid-email' => 'Enter a valid email address.',
+            'invalid-credential' || 'user-not-found' || 'wrong-password' =>
+              'Email or password is incorrect.',
+            'weak-password' => 'Choose a password with at least 6 characters.',
+            'missing-google-id-token' =>
+              'Google sign-in is not configured for this app. Use email and password instead.',
           'web-context-cancelled' || 'canceled' =>
             _role == _PortalRole.parent
                 ? 'Guest sign-in was canceled.'
                 : 'Google sign-in was canceled.',
-          _ => _role == _PortalRole.parent
+            _ => _role == _PortalRole.parent
               ? 'Guest sign-in failed. Please try again.'
-              : 'Google sign-in failed. Please try again.',
+              : useGoogle
+                ? 'Google sign-in failed. Please try again.'
+                : _registering
+                  ? 'Account creation failed. Please try again.'
+                  : 'Sign-in failed. Check your details and try again.',
         };
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(message)),
@@ -189,9 +226,11 @@ class _AccessGateState extends State<AccessGate> {
       return;
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Google sign-in failed. Please try again.')),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(useGoogle
+              ? 'Google sign-in failed. Please try again.'
+              : 'Sign-in failed. Check your details and try again.'),
+        ));
       }
       return;
     } finally {
@@ -359,6 +398,32 @@ class _AccessGateState extends State<AccessGate> {
             const SizedBox(height: 16),
           ],
           if (isTeacher) ...[
+            if (widget.authenticationService != null) ...[
+              TextFormField(
+                key: const ValueKey('teacher-email'),
+                controller: _emailController,
+                keyboardType: TextInputType.emailAddress,
+                autofillHints: const [AutofillHints.email],
+                decoration: const InputDecoration(labelText: 'Email'),
+                validator: (value) => value == null || value.trim().isEmpty
+                    ? 'Enter your email address'
+                    : null,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                key: const ValueKey('teacher-password'),
+                controller: _passwordController,
+                obscureText: true,
+                autofillHints: const [AutofillHints.password],
+                decoration: const InputDecoration(labelText: 'Password'),
+                validator: (value) => value == null || value.isEmpty
+                    ? 'Enter your password'
+                    : _registering && value.length < 6
+                        ? 'Use at least 6 characters'
+                        : null,
+              ),
+              const SizedBox(height: 16),
+            ],
             if (!_addingSchool)
               DropdownButtonFormField<String>(
                 key: const ValueKey('teacher-school-dropdown'),
@@ -434,10 +499,33 @@ class _AccessGateState extends State<AccessGate> {
                     widget.authenticationService == null
                         ? 'Open $roleLabel preview'
                         : isTeacher
-                          ? 'Create or sign in with Google'
+                          ? _registering ? 'Create account' : 'Sign in'
                           : 'Continue as guest',
                   ),
           ),
+          if (isTeacher && widget.authenticationService != null) ...[
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _authenticating
+                    ? null
+                    : () => _openPortal(useGoogle: true),
+                icon: const Icon(Icons.account_circle_outlined),
+                label: const Text('Continue with Google'),
+              ),
+            ),
+            Center(
+              child: TextButton(
+                onPressed: () => setState(() => _registering = !_registering),
+                child: Text(
+                  _registering
+                      ? 'Already have an account? Sign in'
+                      : 'Create a teacher account',
+                ),
+              ),
+            ),
+          ],
           if (widget.authenticationService == null) ...[
             const SizedBox(height: 10),
             Center(

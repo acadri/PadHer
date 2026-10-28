@@ -46,6 +46,31 @@ void main() {
     expect(find.text('Stock'), findsNothing);
   });
 
+  testWidgets('Teachers can sign in with email and password', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final authenticationService = _FakeAuthenticationService();
+    await tester.pumpWidget(
+      MyApp(authenticationService: authenticationService),
+    );
+
+    await tester.tap(find.text('Senior woman teacher'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('teacher-email')),
+      'teacher@example.com',
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey('teacher-password')),
+      'correct-horse-battery',
+    );
+    await tester.tap(find.byKey(const ValueKey('submit-access')));
+    await tester.pumpAndSettle();
+
+    expect(authenticationService.emailSignInAttempts, 1);
+    expect(authenticationService.lastEmail, 'teacher@example.com');
+    expect(find.text('Your teacher account is registered. Staff access requires approval.'), findsOneWidget);
+  });
+
   testWidgets('PodCare supports staff stock and anonymous request workflows', (
     tester,
   ) async {
@@ -327,6 +352,8 @@ class _FakeAuthenticationService implements AuthenticationService {
   bool _isAnonymous = false;
   int guestSignInAttempts = 0;
   int googleSignInAttempts = 0;
+  int emailSignInAttempts = 0;
+  String? lastEmail;
 
   @override
   AuthenticatedUser? get currentUser => _signedIn
@@ -344,6 +371,29 @@ class _FakeAuthenticationService implements AuthenticationService {
     _signedIn = true;
     _isAnonymous = true;
     return const AuthenticatedUser(uid: 'guest-user', isAnonymous: true);
+  }
+
+  @override
+  Future<AuthenticatedUser> signInWithEmailAndPassword(
+    String email,
+    String password,
+  ) async {
+    emailSignInAttempts++;
+    lastEmail = email;
+    _signedIn = true;
+    _isAnonymous = false;
+    return currentUser!;
+  }
+
+  @override
+  Future<AuthenticatedUser> createAccountWithEmailAndPassword(
+    String email,
+    String password,
+  ) async {
+    lastEmail = email;
+    _signedIn = true;
+    _isAnonymous = false;
+    return currentUser!;
   }
 
   @override

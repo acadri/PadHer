@@ -26,6 +26,14 @@ class AuthenticatedUser {
 abstract interface class AuthenticationService {
   AuthenticatedUser? get currentUser;
   Future<AuthenticatedUser> signInAnonymously();
+  Future<AuthenticatedUser> signInWithEmailAndPassword(
+    String email,
+    String password,
+  );
+  Future<AuthenticatedUser> createAccountWithEmailAndPassword(
+    String email,
+    String password,
+  );
   Future<AuthenticatedUser> signInWithGoogle();
   Future<bool> hasTeacherAccess();
   Future<void> signOut();
@@ -50,6 +58,44 @@ class FirebaseAuthenticationService implements AuthenticationService {
       throw FirebaseAuthException(
         code: 'missing-user',
         message: 'Guest sign-in completed without returning a user.',
+      );
+    }
+    return AuthenticatedUser.fromFirebase(user);
+  }
+
+  @override
+  Future<AuthenticatedUser> signInWithEmailAndPassword(
+    String email,
+    String password,
+  ) async {
+    final credential = await _firebaseAuth.signInWithEmailAndPassword(
+      email: email.trim(),
+      password: password,
+    );
+    final user = credential.user;
+    if (user == null) {
+      throw FirebaseAuthException(
+        code: 'missing-user',
+        message: 'Email sign-in completed without returning a user.',
+      );
+    }
+    return AuthenticatedUser.fromFirebase(user);
+  }
+
+  @override
+  Future<AuthenticatedUser> createAccountWithEmailAndPassword(
+    String email,
+    String password,
+  ) async {
+    final credential = await _firebaseAuth.createUserWithEmailAndPassword(
+      email: email.trim(),
+      password: password,
+    );
+    final user = credential.user;
+    if (user == null) {
+      throw FirebaseAuthException(
+        code: 'missing-user',
+        message: 'Account creation completed without returning a user.',
       );
     }
     return AuthenticatedUser.fromFirebase(user);
