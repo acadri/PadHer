@@ -38,7 +38,7 @@ void main() {
 
     await tester.tap(find.text('Senior woman teacher'));
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('submit-access')));
+    await tester.tap(find.text('Continue with Google'));
     await tester.pumpAndSettle();
 
     expect(authenticationService.googleSignInAttempts, 1);
@@ -71,13 +71,13 @@ void main() {
     expect(find.text('Your teacher account is registered. Staff access requires approval.'), findsOneWidget);
   });
 
-  testWidgets('PodCare supports staff stock and anonymous request workflows', (
+  testWidgets('PadCare supports staff stock and anonymous request workflows', (
     tester,
   ) async {
     SharedPreferences.setMockInitialValues({});
     await tester.pumpWidget(const MyApp());
 
-    final logo = find.byKey(const ValueKey('podcare-logo'));
+    final logo = find.byKey(const ValueKey('padcare-logo'));
     expect(logo, findsOneWidget);
     expect(
       find.descendant(of: logo, matching: find.byType(Image)),
@@ -92,7 +92,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('submit-access')));
     await tester.pumpAndSettle();
 
-    expect(find.text('PodCare'), findsWidgets);
+    expect(find.text('PadCare'), findsWidgets);
     expect(find.text('St. Mary\'s Secondary'), findsOneWidget);
     expect(find.text('Stock'), findsOneWidget);
     expect(find.text('Requests'), findsOneWidget);
@@ -357,7 +357,7 @@ class _FakeAuthenticationService implements AuthenticationService {
 
   @override
   AuthenticatedUser? get currentUser => _signedIn
-      ? const AuthenticatedUser(
+      ? AuthenticatedUser(
           uid: 'test-user',
           displayName: 'Test Parent',
           email: 'parent@example.com',

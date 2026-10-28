@@ -1,11 +1,11 @@
 {
-    "name": "PodCare",
-    "short_name": "PodCare",
+    "name": "PadCare",
+    "short_name": "PadCare",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#EFFFFB",
     "theme_color": "#2BB5AD",
-    "description": "PodCare menstrual health support.",
+    "description": "PadCare menstrual health support.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

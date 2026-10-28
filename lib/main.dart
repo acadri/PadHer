@@ -57,7 +57,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'PodCare',
+      title: 'PadCare',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
@@ -305,7 +305,7 @@ class _AccessGateState extends State<AccessGate> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Choose your PodCare access',
+          'Choose your PadCare access',
           style: TextStyle(
             color: _ink,
             fontSize: 25,
@@ -315,7 +315,7 @@ class _AccessGateState extends State<AccessGate> {
         ),
         const SizedBox(height: 8),
         const Text(
-          'Explore PodCare as a school staff member or as a parent or guardian.',
+          'Explore PadCare as a school staff member or as a parent or guardian.',
           style: TextStyle(color: _muted, height: 1.5),
         ),
         const SizedBox(height: 24),
@@ -579,7 +579,7 @@ class _BrandLockup extends StatelessWidget {
         _BrandMark(),
         SizedBox(width: 10),
         Text(
-          'PodCare',
+          'PadCare',
           style: TextStyle(
             color: _ink,
             fontSize: 23,
@@ -606,7 +606,7 @@ class _BrandMark extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      key: const ValueKey('podcare-logo'),
+      key: const ValueKey('padcare-logo'),
       width: 36,
       height: 36,
       decoration: BoxDecoration(
@@ -1293,7 +1293,7 @@ class _TopBar extends StatelessWidget {
           const _BrandMark(),
           const SizedBox(width: 9),
           const Text(
-            'PodCare',
+            'PadCare',
             style: TextStyle(
               color: _ink,
               fontSize: 21,
